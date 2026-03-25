@@ -5,13 +5,38 @@ interface ProjectCardProps {
   project: ProjectObject;
 }
 
+// Changed: Added helper function to safely parse tech_stack regardless of its type (string, array, or object)
+function parseTechStack(techStack: unknown): string[] {
+  if (!techStack) return [];
+  if (Array.isArray(techStack)) {
+    return techStack
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (typeof item === 'object' && item !== null && 'value' in item) {
+          return String((item as { value: unknown }).value).trim();
+        }
+        if (typeof item === 'object' && item !== null && 'key' in item) {
+          return String((item as { key: unknown }).key).trim();
+        }
+        return String(item).trim();
+      })
+      .filter(Boolean);
+  }
+  if (typeof techStack === 'string') {
+    return techStack.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  // Handle object-shaped values (e.g., {key, value})
+  if (typeof techStack === 'object' && techStack !== null && 'value' in techStack) {
+    const val = String((techStack as { value: unknown }).value);
+    return val.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 export default function ProjectCard({ project }: ProjectCardProps) {
-  const techStackStr = project.metadata?.tech_stack || '';
-  const techItems = techStackStr
-    .split(',')
-    .map((t: string) => t.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  // Changed: Use safe parseTechStack helper instead of direct .split()
+  const allTechItems = parseTechStack(project.metadata?.tech_stack);
+  const techItems = allTechItems.slice(0, 4);
 
   const screenshots = project.metadata?.screenshots;
   const firstScreenshot = screenshots && screenshots.length > 0 ? screenshots[0] : null;
@@ -60,9 +85,10 @@ export default function ProjectCard({ project }: ProjectCardProps) {
                 {tech}
               </span>
             ))}
-            {techStackStr.split(',').length > 4 && (
+            {/* Changed: Use allTechItems.length instead of splitting raw value again */}
+            {allTechItems.length > 4 && (
               <span className="px-2 py-0.5 text-[10px] font-mono text-cyber-muted">
-                +{techStackStr.split(',').length - 4}
+                +{allTechItems.length - 4}
               </span>
             )}
           </div>

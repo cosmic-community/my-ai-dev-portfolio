@@ -4,6 +4,33 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
+// Changed: Added helper function to safely parse tech_stack regardless of its type
+function parseTechStack(techStack: unknown): string[] {
+  if (!techStack) return [];
+  if (Array.isArray(techStack)) {
+    return techStack
+      .map((item) => {
+        if (typeof item === 'string') return item.trim();
+        if (typeof item === 'object' && item !== null && 'value' in item) {
+          return String((item as { value: unknown }).value).trim();
+        }
+        if (typeof item === 'object' && item !== null && 'key' in item) {
+          return String((item as { key: unknown }).key).trim();
+        }
+        return String(item).trim();
+      })
+      .filter(Boolean);
+  }
+  if (typeof techStack === 'string') {
+    return techStack.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  if (typeof techStack === 'object' && techStack !== null && 'value' in techStack) {
+    const val = String((techStack as { value: unknown }).value);
+    return val.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 export async function generateStaticParams() {
   const projects = await getProjects();
   return projects.map((project) => ({
@@ -39,11 +66,8 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const techStackStr = project.metadata?.tech_stack || '';
-  const techItems = techStackStr
-    .split(',')
-    .map((t: string) => t.trim())
-    .filter(Boolean);
+  // Changed: Use safe parseTechStack helper instead of direct .split()
+  const techItems = parseTechStack(project.metadata?.tech_stack);
 
   const screenshots = project.metadata?.screenshots;
   const liveUrl = project.metadata?.live_url;
